@@ -187,6 +187,12 @@ void loop()
   //////////////////////////////////////////////
   if (M5.BtnA.wasPressed()) {
     send_spot_f = spot_f;
+    M5.Lcd.fillRect(164, 220, 75, 18, TFT_BLACK);  // clear text
+    M5.Lcd.setTextSize(2);  // set text size
+    M5.Lcd.setCursor(60, 222); // update text
+    M5.Lcd.print("Measure:");
+    M5.Lcd.print(send_spot_f, 2);
+    M5.Lcd.print("C  ");
   }
 
   //////////////////////////////////
@@ -311,11 +317,9 @@ void loop()
 
 
   M5.Lcd.setTextSize(2);
-  M5.Lcd.fillRect(164, 220, 75, 18, TFT_BLACK);  // clear max temp text
   M5.Lcd.fillRect(60, 220, 200, 18, TFT_BLACK); // clear spot temp text
-    int icolor = 0;
+  int icolor = 0;
 
-  M5.Lcd.setCursor(60, 222);      // update min & max temp
   M5.Lcd.setTextColor(TFT_WHITE);
 
   if (max_v > max_cam_v | max_v < min_cam_v ) {
