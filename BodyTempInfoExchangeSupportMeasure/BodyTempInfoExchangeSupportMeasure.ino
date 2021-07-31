@@ -187,10 +187,11 @@ void loop()
   //////////////////////////////////////////////
   if (M5.BtnA.wasPressed()) {
     send_spot_f = spot_f;
-    M5.Lcd.fillRect(164, 220, 75, 18, TFT_BLACK);  // clear text
+    M5.Lcd.fillRect(60, 220, 200, 18, TFT_BLACK);
     M5.Lcd.setTextSize(2);  // set text size
-    M5.Lcd.setCursor(60, 222); // update text
-    M5.Lcd.print("Measure:");
+    M5.Lcd.setTextColor(TFT_WHITE);
+    M5.Lcd.setCursor(66, 222); // update text
+    M5.Lcd.print("MeasValue:");
     M5.Lcd.print(send_spot_f, 2);
     M5.Lcd.print("C  ");
   }
@@ -202,6 +203,13 @@ void loop()
     uint8_t send_spot_int = (uint8_t)send_spot_f;
     uint8_t data[2] = {send_spot_int, (uint8_t)((send_spot_f - send_spot_int) * 100)};
     esp_err_t result = esp_now_send(slave.peer_addr, data, sizeof(data));
+    M5.Lcd.fillRect(60, 220, 200, 18, TFT_BLACK);
+    M5.Lcd.setTextSize(2);  // set text size
+    M5.Lcd.setTextColor(TFT_BLUE);
+    M5.Lcd.setCursor(66, 222); // update text
+    M5.Lcd.print("SendValue:");
+    M5.Lcd.print(send_spot_f, 2);
+    M5.Lcd.print("C  ");
   }
 
   //////////////////////////////////////
@@ -317,7 +325,6 @@ void loop()
 
 
   M5.Lcd.setTextSize(2);
-  M5.Lcd.fillRect(60, 220, 200, 18, TFT_BLACK); // clear spot temp text
   int icolor = 0;
 
   M5.Lcd.setTextColor(TFT_WHITE);
@@ -361,6 +368,7 @@ void infodisplay(void) {
   M5.Lcd.print(MINTEMP , 1);
   M5.Lcd.print("C");
   M5.Lcd.setCursor(106, 224);
+  M5.Lcd.fillRect(60, 220, 200, 18, TFT_BLACK);
 }
 
 void drawpixels(float *p, uint8_t rows, uint8_t cols, uint8_t boxWidth, uint8_t boxHeight, boolean showVal) {
