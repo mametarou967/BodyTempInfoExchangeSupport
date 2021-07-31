@@ -46,6 +46,7 @@ int max_cam_v = 300; // Spec in datasheet
 int resetMaxTemp = 45;
 // int spotValue = 35;
 float spot_f = 0.0;
+float send_spot_f = 0.0;
 
 //the colors we will be using
 
@@ -180,89 +181,32 @@ void loop()
 {
   loopTime = millis();
   startTime = loopTime;
-  ///////////////////////////////
-  // Set Min Value - LongPress //
-  ///////////////////////////////
-  if (M5.BtnA.pressedFor(1000)) {
-    if (MINTEMP <= 5 )
-    {
-      MINTEMP = MAXTEMP - 5;
-    }
-    else
-    {
-      MINTEMP = MINTEMP - 5;
-    }
-    infodisplay();
+
+  //////////////////////////////////////////////
+  // ButtonA press -> Measure And Disp Value  //
+  //////////////////////////////////////////////
+  if (M5.BtnA.wasPressed()) {
+    send_spot_f = spot_f;
   }
 
-  ///////////////////////////////
-  // Set Min Value - SortPress //
-  ///////////////////////////////
-  if (M5.BtnA.wasPressed()) {
-    if (MINTEMP <= 0)
-    {
-      MINTEMP = MAXTEMP - 1;
-    }
-    else
-    {
-      MINTEMP--;
-    }
-    infodisplay();
-
-    // esp-now data send
-    uint8_t spot_int = (uint8_t)spot_f;
-    uint8_t data[2] = {spot_int, (uint8_t)((spot_f - spot_int) * 100)};
+  //////////////////////////////////
+  // ButtonC press -> Send Value  //
+  //////////////////////////////////
+  if (M5.BtnC.wasPressed()) {
+    uint8_t send_spot_int = (uint8_t)send_spot_f;
+    uint8_t data[2] = {send_spot_int, (uint8_t)((send_spot_f - send_spot_int) * 100)};
     esp_err_t result = esp_now_send(slave.peer_addr, data, sizeof(data));
   }
 
-  /////////////////////
-  // Reset settings  //
-  /////////////////////
-  if (M5.BtnB.wasPressed()) {
-    MINTEMP = min_v - 1;
-    MAXTEMP = max_v + 1;
-    infodisplay();
-  }
-
-  ////////////////
-  // Power Off  //
-  ////////////////
+  //////////////////////////////////////
+  // ButtonB press long -> Power Off  //
+  //////////////////////////////////////
   if (M5.BtnB.pressedFor(1000)) {
     M5.Lcd.fillScreen(TFT_BLACK);
     M5.Lcd.setTextColor(YELLOW, BLACK);
     M5.Lcd.drawCentreString("Power Off...", 160, 80, 4);
     delay(1000);
     M5.powerOFF();
-  }
-
-  ///////////////////////////////
-  // Set Max Value - LongPress //
-  ///////////////////////////////
-  if (M5.BtnC.pressedFor(1000)) {
-    if (MAXTEMP >= max_cam_v)
-    {
-      MAXTEMP = MINTEMP + 1;
-    }
-    else
-    {
-      MAXTEMP = MAXTEMP + 5;
-    }
-    infodisplay();
-  }
-
-  ///////////////////////////////
-  // Set Max Value - SortPress //
-  ///////////////////////////////
-  if (M5.BtnC.wasPressed()) {
-    if (MAXTEMP >= max_cam_v )
-    {
-      MAXTEMP = MINTEMP + 1;
-    }
-    else
-    {
-      MAXTEMP++;
-    }
-    infodisplay();
   }
 
   M5.update();
@@ -285,7 +229,6 @@ void loop()
     int mode_ = MLX90640_GetCurMode(MLX90640_address);
     //amendment
     MLX90640_BadPixelsCorrection((&mlx90640)->brokenPixels, pixels, mode_, &mlx90640);
-    //MLX90640_BadPixelsCorrection((&mlx90640)->outlierPixels, pixels, mode_, &mlx90640);
   }
 
   //Reverse image (order of Integer array)
@@ -298,7 +241,6 @@ void loop()
         for (int j = 0 + x, k = (COLS-1) + x; j < COLS + x ; j++, k--)
         {
           reversePixels[j] = pixels[k];
-  //         Serial.print(x);Serial.print(" = Rev "); Serial.print(j);Serial.print(" ,  Nor ");Serial.println(k);
         }
       }
     }
@@ -346,10 +288,7 @@ void loop()
 
   uint16_t boxsize = min(M5.Lcd.width() / INTERPOLATED_ROWS, M5.Lcd.height() / INTERPOLATED_COLS);
   uint16_t boxWidth = M5.Lcd.width() / INTERPOLATED_ROWS;
-  //uint16_t boxWidth = 192 / INTERPOLATED_ROWS;
   uint16_t boxHeight = (M5.Lcd.height() - 31) / INTERPOLATED_COLS; // 31 for bottom info
-  //drawpixels(pixels, 24, INTERPOLATED_COLS, 8, 8, false);
-  //drawpixels(pixels_2, 48, 64, 5, 5, false);
   drawpixels(dest_2d, INTERPOLATED_ROWS, INTERPOLATED_COLS, boxWidth, boxHeight, false);
   max_v = MINTEMP;
   min_v = MAXTEMP;
@@ -357,7 +296,6 @@ void loop()
   spot_v = pixels[768/2];
   spot_f = pixels[768/2];
   Serial.println(spot_f,2);
-//while(1);
   
    for ( int itemp = 0; itemp < sizeof(pixels) / sizeof(pixels[0]); itemp++ )
   {
@@ -386,12 +324,6 @@ void loop()
   }
   else
   {
-    M5.Lcd.print("Min:");
-    M5.Lcd.print(min_v, 1);
-    M5.Lcd.print("C  ");
-    M5.Lcd.print("Max:");
-    M5.Lcd.print(max_v, 1);
-    M5.Lcd.print("C");
     M5.Lcd.setCursor(180, 94); // update spot temp text
     M5.Lcd.print(spot_f, 2);
     M5.Lcd.printf("C");
