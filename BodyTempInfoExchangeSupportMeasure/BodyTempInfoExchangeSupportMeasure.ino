@@ -3,6 +3,9 @@
 */
 #include <M5Stack.h>
 #include <Wire.h>
+#include <esp_now.h>
+#include <WiFi.h>
+esp_now_peer_info_t slave;
 
 #include "MLX90640_API.h"
 #include "MLX90640_I2C_Driver.h"
@@ -42,6 +45,7 @@ int MAXTEMP = 35; // For color mapping
 int max_v = 35; //Value of current max temp
 int max_cam_v = 300; // Spec in datasheet
 int resetMaxTemp = 45;
+int spotValue = 35;
 
 //the colors we will be using
 
@@ -86,6 +90,33 @@ void interpolate_image(float *src, uint8_t src_rows, uint8_t src_cols, float *de
 
 long loopTime, startTime, endTime, fps;
 
+// 送信コールバック
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  // do nothing
+  // M5.Lcd.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+
+
+void EspNowInit(){
+  // ESP-NOW初期化
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  if (esp_now_init() == ESP_OK) {
+  } else {
+    ESP.restart();
+  }
+  // マルチキャスト用Slave登録
+  memset(&slave, 0, sizeof(slave));
+  for (int i = 0; i < 6; ++i) {
+    slave.peer_addr[i] = (uint8_t)0xff;
+  }
+  esp_err_t addStatus = esp_now_add_peer(&slave);
+  if (addStatus == ESP_OK) {
+    // Pair success
+    Serial.println("Pair success");
+  }
+}
+
 void setup()
 {
   M5.begin();
@@ -109,11 +140,11 @@ void setup()
   status = MLX90640_DumpEE(MLX90640_address, eeMLX90640);
   if (status != 0)
     Serial.println("Failed to load system parameters");
-
+  
   status = MLX90640_ExtractParameters(eeMLX90640, &mlx90640);
   if (status != 0)
     Serial.println("Parameter extraction failed");
-
+  
   int SetRefreshRate;
   //Setting MLX90640 device at slave address 0x33 to work with 16Hz refresh rate:
   // 0x00 – 0.5Hz
@@ -137,6 +168,11 @@ void setup()
     icolor++;
   }
   infodisplay();
+
+  // esp-now
+  EspNowInit();
+  // ESP-NOWコールバック登録
+  esp_now_register_send_cb(OnDataSent);
 }
 
 
@@ -172,6 +208,10 @@ void loop()
       MINTEMP--;
     }
     infodisplay();
+
+    // esp-now data send
+    uint8_t data[2] = {spotValue, spotValue};
+    esp_err_t result = esp_now_send(slave.peer_addr, data, sizeof(data));
   }
 
   /////////////////////
@@ -241,7 +281,7 @@ void loop()
     float tr = Ta - TA_SHIFT; //Reflected temperature based on the sensor ambient temperature
     float emissivity = 0.95;
     MLX90640_CalculateTo(mlx90640Frame, &mlx90640, emissivity, tr, pixels); //save pixels temp to array (pixels)
-	int mode_ = MLX90640_GetCurMode(MLX90640_address);
+    int mode_ = MLX90640_GetCurMode(MLX90640_address);
     //amendment
     MLX90640_BadPixelsCorrection((&mlx90640)->brokenPixels, pixels, mode_, &mlx90640);
     //MLX90640_BadPixelsCorrection((&mlx90640)->outlierPixels, pixels, mode_, &mlx90640);
@@ -391,6 +431,7 @@ void loop()
     M5.Lcd.print("C");
     M5.Lcd.setCursor(180, 94); // update spot temp text
     M5.Lcd.print(spot_v, 1);
+    spotValue = spot_v;
     M5.Lcd.printf("C");
     //M5.Lcd.drawCircle(160, 100, 6, TFT_WHITE);     // update center spot icon
     //M5.Lcd.drawLine(160, 90, 160, 110, TFT_WHITE); // vertical line
