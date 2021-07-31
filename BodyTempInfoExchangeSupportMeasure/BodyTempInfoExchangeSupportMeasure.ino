@@ -45,7 +45,8 @@ int MAXTEMP = 35; // For color mapping
 int max_v = 35; //Value of current max temp
 int max_cam_v = 300; // Spec in datasheet
 int resetMaxTemp = 45;
-int spotValue = 35;
+// int spotValue = 35;
+float spot_f = 0.0;
 
 //the colors we will be using
 
@@ -210,7 +211,8 @@ void loop()
     infodisplay();
 
     // esp-now data send
-    uint8_t data[2] = {spotValue, spotValue};
+    uint8_t spot_int = (uint8_t)spot_f;
+    uint8_t data[2] = {spot_int, (uint8_t)((spot_f - spot_int) * 100)};
     esp_err_t result = esp_now_send(slave.peer_addr, data, sizeof(data));
   }
 
@@ -389,6 +391,8 @@ void loop()
   min_v = MAXTEMP;
   int spot_v = pixels[360];
   spot_v = pixels[768/2];
+  spot_f = pixels[768/2];
+  Serial.println(spot_f,2);
 //while(1);
   
    for ( int itemp = 0; itemp < sizeof(pixels) / sizeof(pixels[0]); itemp++ )
@@ -430,8 +434,8 @@ void loop()
     M5.Lcd.print(max_v, 1);
     M5.Lcd.print("C");
     M5.Lcd.setCursor(180, 94); // update spot temp text
-    M5.Lcd.print(spot_v, 1);
-    spotValue = spot_v;
+    M5.Lcd.print(spot_f, 2);
+    // spotValue = spot_v;
     M5.Lcd.printf("C");
     //M5.Lcd.drawCircle(160, 100, 6, TFT_WHITE);     // update center spot icon
     //M5.Lcd.drawLine(160, 90, 160, 110, TFT_WHITE); // vertical line
