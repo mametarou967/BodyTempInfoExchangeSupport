@@ -25,7 +25,6 @@ float reversePixels[COLS * ROWS];
 
 byte speed_setting = 2 ; // High is 1 , Low is 2
 bool reverseScreen = false;
-//bool reverseScreen = true;
 
 #define INTERPOLATED_COLS 32
 #define INTERPOLATED_ROWS 32
@@ -331,29 +330,8 @@ void loop()
           pixels_2[(((y * 2) * (COLS*2)) + (x * 2)+1)] = ( pixels_2[(((y * 2) * (COLS*2)) + (x * 2))] + pixels_2[(((y * 2) * (COLS*2)) + (x * 2)+2)]) / 2;
         else
           pixels_2[(((y * 2) * (COLS*2)) + (x * 2)+1)] = ( pixels_2[(((y * 2) * (COLS*2)) + (x * 2))] );
-          
-        //Serial.print(pixels_2[(((y * 2) * (COLS*2)) + (x * 2))]);
-        //Serial.print(pixels[y*COLS+x]);
-        //Serial.print(" ");
-      }
-      //Serial.println("\r\n");
-    }
-    /*
-   //-------------------------
-    // 计算x间隔插入数据
-    for(int y = 0;y < ROWS;y++)//24
-    {
-      for(int x = 0;x < COLS;x++)//32
-      {
-        if(x != 31)
-          pixels_2[(((y * 2) * (COLS*2)) + (x * 2)+1)] = ( pixels_2[(((y * 2) * (COLS*2)) + (x * 2))] + pixels_2[(((y * 2) * (COLS*2)) + (x * 2)+2)]) / 2;
-        else
-          pixels_2[(((y * 2) * (COLS*2)) + (x * 2)+1)] = ( pixels_2[(((y * 2) * (COLS*2)) + (x * 2))] );
       }
     }
-    */
-    ///*
-    // 计算y间隔插入数据 
     for(int y = 0;y < ROWS;y++)//24
     {
       for(int x = 0;x < COLS_2;x++)//64
@@ -363,21 +341,7 @@ void loop()
         else
           pixels_2[(((y * 2) + 1) * (COLS_2)) + x] = ( pixels_2[(((y * 2) * COLS_2) + x)] + pixels_2[(((y * 2) * COLS_2) + x)] ) / 2;
       }
-    }   
-    //*/
-/*
-       //打印数据
-    for(int y = 0;y < ROWS_2;y++)
-    {
-      for(int x = 0;x < COLS_2;x++)
-      {
-        Serial.print(pixels_2[y * COLS_2 + x]);
-        Serial.print(" ");
-      }
-      Serial.println("\r\n");
     }
-    //-------------------------
-   // */ 
   }
 
   uint16_t boxsize = min(M5.Lcd.width() / INTERPOLATED_ROWS, M5.Lcd.height() / INTERPOLATED_COLS);
@@ -412,11 +376,6 @@ void loop()
   M5.Lcd.fillRect(164, 220, 75, 18, TFT_BLACK);  // clear max temp text
   M5.Lcd.fillRect(60, 220, 200, 18, TFT_BLACK); // clear spot temp text
     int icolor = 0;
-  //for (int icol = 0; icol <= 248;  icol++)
-  //{
-   // M5.Lcd.drawRect(36, 208, icol, 284 , camColors[icolor]);
-   // icolor++;
-  //}
 
   M5.Lcd.setCursor(60, 222);      // update min & max temp
   M5.Lcd.setTextColor(TFT_WHITE);
@@ -435,11 +394,7 @@ void loop()
     M5.Lcd.print("C");
     M5.Lcd.setCursor(180, 94); // update spot temp text
     M5.Lcd.print(spot_f, 2);
-    // spotValue = spot_v;
     M5.Lcd.printf("C");
-    //M5.Lcd.drawCircle(160, 100, 6, TFT_WHITE);     // update center spot icon
-    //M5.Lcd.drawLine(160, 90, 160, 110, TFT_WHITE); // vertical line
-    //M5.Lcd.drawLine(150, 100, 170, 100, TFT_WHITE); // horizontal line
     M5.Lcd.drawCircle(160, 120, 6, TFT_WHITE);     // update center spot icon
     M5.Lcd.drawLine(160, 110, 160, 130, TFT_WHITE); // vertical line
     M5.Lcd.drawLine(150, 120, 170, 120, TFT_WHITE); // horizontal line
@@ -447,7 +402,6 @@ void loop()
   loopTime = millis();
   endTime = loopTime;
   fps = 1000 / (endTime - startTime);
-  //M5.Lcd.fillRect(310, 209, 10, 12, TFT_BLACK); //Clear fps text area
   M5.Lcd.fillRect(300, 209, 20, 12, TFT_BLACK); //Clear fps text area
   M5.Lcd.setTextSize(1);
   M5.Lcd.setCursor(284, 210);
