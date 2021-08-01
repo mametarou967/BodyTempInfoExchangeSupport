@@ -17,6 +17,7 @@ void DispQrCode(int mode){
   }else{
     M5.Lcd.fillRect(qrX, qrY, qrSize, qrSize, TFT_BLACK);
     M5.Lcd.drawRect(qrX, qrY, qrSize, qrSize, WHITE);
+    M5.Lcd.setTextSize(2);
     M5.Lcd.setCursor(qrX + 35, qrY + (qrSize / 2) - 20);
     M5.Lcd.print("QR code");
     M5.Lcd.setCursor(qrX + 45, qrY + (qrSize / 2));
@@ -34,13 +35,47 @@ void ConvertDispQrCode(){
   }
 }
 
+void SendValue(float value)
+{
+  const int pointChar = 0x2E;
+  char sendtext[16] = {0};
+  // M5.Lcd.println("Send Message.");
+  // Serial2.println("AT$SF=33322E35");
+  int intValue = (int)value;
+  int keta1 = (intValue / 10) + 0x30;
+  int keta2 = (intValue % 10) + 0x30;
+  int keta3 = (int)((value - intValue) * 10) + 0x30;
+
+  sprintf(sendtext,"AT$SF=%X%X%X%X",keta1,keta2,pointChar,keta3);
+  Serial.print("Send Message.\n");
+  Serial.print(sendtext);
+  Serial.print("\n");
+  // M5.Lcd.println("Send Message.");
+  // Serial2.println("AT$SF=33322E35");
+  
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.setCursor(124,12);
+  M5.Lcd.print(value, 2);
+  M5.Lcd.print("C");
+}
+
 void InitShow(){
  M5.Lcd.clear(BLACK);
  M5.Lcd.setTextColor(WHITE);
- M5.Lcd.setTextSize(2);
- M5.Lcd.drawRect(6, 218, 110, 20, WHITE);
- M5.Lcd.setCursor(20, 220);
- M5.Lcd.print("QR DISP");
+
+  // upper text
+  M5.Lcd.drawRect(2, 2, 316, 60, WHITE);
+  M5.Lcd.setTextSize(1);
+  M5.Lcd.setCursor(10,20);
+  M5.Lcd.print("Latest Sent Value:");
+
+  // A button text
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.drawRect(6, 218, 110, 20, WHITE);
+  M5.Lcd.setCursor(20, 220);
+  M5.Lcd.print("QR DISP");
+
+  DispQrCode(QR_HIDE_MODE);
 }
 
 void setup() {
@@ -48,7 +83,6 @@ void setup() {
   Serial2.begin(9600, SERIAL_8N1, 13, 14);
   // showTempl();
   InitShow();
-  DispQrCode(QR_DISP_MODE);
 }
 
 void loop() {
@@ -59,21 +93,14 @@ void loop() {
   TouchPoint_t pos = M5.Touch.getPressPoint();
   char btn = btnPressed(pos);
   if (btn != 0) {
-    // showTempl();
     if (btn == 'A') {
       ConvertDispQrCode();
-      // M5.Lcd.println("Send Message.");
-      // Serial2.println("AT$SF=33322E35");
+    }else if(btn == 'B') {
+      int test1 = 12;
+      int test2 = 34;
+      float sendValue = (float)test1 + ((float)test2 * 0.01);
+      SendValue(sendValue);
     }
-    // } else if (btn == 'B') {
-      // M5.Lcd.println("Send Message with Ack.");
-      // Serial2.println("AT$SF=C0FFEE,1");        
-    //} else if (btn == 'C') {
-      // Serial.print("C pushed");
-      // M5.Lcd.println("Device ID&PAC: ");
-      // Serial2.println("AT$I=10");
-      // Serial2.println("AT$I=11");    
-    // }
     delay(1000);
   }
 }
@@ -92,19 +119,6 @@ char btnPressed(TouchPoint_t pos)
  } 
  return btn; 
 } 
-
-/*
-void showTempl() 
-{
- M5.Lcd.clear(BLACK);
- M5.Lcd.setTextColor(WHITE);
- M5.Lcd.setTextSize(2);
- M5.Lcd.setCursor(10, 10);
- M5.Lcd.println("M5Stack Core2 COM.Sigfox");
- M5.Lcd.setTextColor(BLUE);
- M5.Lcd.setCursor(0, 35);
- }
- */
 
 void displayResults(String ack)
 {
