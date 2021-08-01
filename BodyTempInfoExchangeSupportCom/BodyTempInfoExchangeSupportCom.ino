@@ -2,14 +2,66 @@
 #include "BodyTempInfoExchangeSupportCom.h"
 #include <esp_now.h>
 #include <WiFi.h>
-esp_now_peer_info_t slave;
 
 #define DEBUG 0
-
+// QR DISP MODE
 #define QR_DISP_MODE  0
 #define QR_HIDE_MODE  1
+// ELAPSED TIME MODE
+#define ELAPSED_TIME_MODE_CLEAR 0
+#define ELAPSED_TIME_MODE_SEC_UPDATE 1
 
 int dispMode = QR_DISP_MODE;
+esp_now_peer_info_t slave;
+hw_timer_t * timer = NULL;
+
+void elapsedTimeDispUpdate(const char* text){
+  M5.Lcd.fillRect(164, 32, 20 * 5, 20, TFT_BLACK);
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.setCursor(164,32);
+  M5.Lcd.print(text);
+}
+
+void latestSentValueDispUpdate(float value){
+  M5.Lcd.fillRect(164, 12, 20 * 5, 20, TFT_BLACK);
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.setCursor(164,12);
+  M5.Lcd.print(value, 2);
+  M5.Lcd.print("C");
+  
+}
+void elapsedTimeUpdated(int mode){
+  static int elapsedTimeSec = 0;
+  static int elapsedTimeMin = 0;
+  static int elapsedTimeHour = 0;
+
+  char dispText[10] = {0};
+
+  if(mode == ELAPSED_TIME_MODE_CLEAR){
+    elapsedTimeSec = 0;
+    elapsedTimeMin = 0;
+    elapsedTimeHour = 0;
+  }else if(mode == ELAPSED_TIME_MODE_SEC_UPDATE){
+    elapsedTimeSec = elapsedTimeSec + 1;
+    
+    if(elapsedTimeSec > 60){
+      elapsedTimeSec = 0;
+      elapsedTimeMin = elapsedTimeMin + 1;
+    }
+
+    if(elapsedTimeMin > 60){
+      elapsedTimeMin = 0;
+      elapsedTimeHour = elapsedTimeHour + 1;
+    }
+  }
+
+  sprintf(dispText,"%d:%02d:%02d",elapsedTimeHour,elapsedTimeMin,elapsedTimeSec);
+  elapsedTimeDispUpdate(dispText);
+}
+
+void IRAM_ATTR onTimer() {
+  elapsedTimeUpdated(ELAPSED_TIME_MODE_SEC_UPDATE);
+}
 
 void DispQrCode(int mode){
   const int qrX = 135;
@@ -53,16 +105,6 @@ void SendValue(float value)
   if(!DEBUG){
     Serial2.println(sendtext);
   }
-
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setCursor(124,12);
-  M5.Lcd.print(value, 2);
-  M5.Lcd.print("C");
-  
-  // debug serial
-  Serial.print("Send Message.\n");
-  Serial.print(sendtext);
-  Serial.print("\n");
 }
 
 void InitShow(){
@@ -72,8 +114,10 @@ void InitShow(){
   // upper text
   M5.Lcd.drawRect(2, 2, 316, 60, WHITE);
   M5.Lcd.setTextSize(1);
-  M5.Lcd.setCursor(10,20);
+  M5.Lcd.setCursor(30,20);
   M5.Lcd.print("Latest Sent Value:");
+  M5.Lcd.setCursor(30,40);
+  M5.Lcd.print("     Elapsed Time:");
 
   // A button text
   M5.Lcd.setTextSize(2);
@@ -107,16 +151,31 @@ void EspNowInit(){
 // esp-now 受信コールバック
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   float receiveValue = (float)data[0] + ((float)data[1] /100);
+  // sigfox側に送信
   SendValue(receiveValue);
+  // 経過時間の初期化
+  elapsedTimeUpdated(ELAPSED_TIME_MODE_CLEAR);
+  // 画面に送った値の表示
+  latestSentValueDispUpdate(receiveValue);
 }
 
 void setup() {
+  // m5 config
   M5.begin(true, false, true);
+  // sigfox config
   Serial2.begin(9600, SERIAL_8N1, 13, 14);
+  // esp-now config
   EspNowInit();
   esp_now_register_recv_cb(OnDataRecv);
+  // disp config
   InitShow();
+  // timer config
+  timer = timerBegin(0, 80, true);
+  timerAttachInterrupt(timer, &onTimer, true);
+  timerAlarmWrite(timer, 1000000, true);
+  timerAlarmEnable(timer);
 }
+
 
 void loop() {
   if (Serial2.available()) {
@@ -128,11 +187,6 @@ void loop() {
   if (btn != 0) {
     if (btn == 'A') {
       ConvertDispQrCode();
-    }else if(btn == 'B') {
-      int test1 = 12;
-      int test2 = 34;
-      float sendValue = (float)test1 + ((float)test2 * 0.01);
-      SendValue(sendValue);
     }
     delay(1000);
   }
@@ -155,19 +209,5 @@ char btnPressed(TouchPoint_t pos)
 
 void displayResults(String ack)
 {
-  /*
- M5.Lcd.println(ack);
- int i = ack.indexOf("RX=");
- if (i >= 0)
- {
- ack.replace(" ", "");
- String bs = ack.substring(i + 6, i + 11);
- String rs = ack.substring(i + 15);
- signed int rssi = (int16_t)(strtol(rs.c_str(), NULL, 16));
- M5.Lcd.print("BSID: ");
- M5.Lcd.println(bs);
- M5.Lcd.print("RSSI: ");
- M5.Lcd.println(rssi);
- }
- */
+  // do nothing
 }
