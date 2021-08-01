@@ -1,9 +1,54 @@
 #include <M5Core2.h>
+#include "BodyTempInfoExchangeSupportCom.h"
+
+#define QR_DISP_MODE  0
+#define QR_HIDE_MODE  1
+
+int dispMode = QR_DISP_MODE;
+
+void DispQrCode(int mode){
+  const int qrX = 135;
+  const int qrY = 70;
+  const int qrSize = 160;
+  
+  if(mode == QR_DISP_MODE){
+    M5.Lcd.fillRect(qrX, qrY, qrSize, qrSize, TFT_BLACK);
+    M5.Lcd.qrcode(YOUR_WEBSITE_URI,qrX,qrY,qrSize,6);
+  }else{
+    M5.Lcd.fillRect(qrX, qrY, qrSize, qrSize, TFT_BLACK);
+    M5.Lcd.drawRect(qrX, qrY, qrSize, qrSize, WHITE);
+    M5.Lcd.setCursor(qrX + 35, qrY + (qrSize / 2) - 20);
+    M5.Lcd.print("QR code");
+    M5.Lcd.setCursor(qrX + 45, qrY + (qrSize / 2));
+    M5.Lcd.print("Hidden");
+  }
+
+  dispMode = mode;
+}
+
+void ConvertDispQrCode(){
+  if(dispMode == QR_DISP_MODE){
+     DispQrCode(QR_HIDE_MODE);
+  }else{
+    DispQrCode(QR_DISP_MODE);
+  }
+}
+
+void InitShow(){
+ M5.Lcd.clear(BLACK);
+ M5.Lcd.setTextColor(WHITE);
+ M5.Lcd.setTextSize(2);
+ M5.Lcd.drawRect(6, 218, 110, 20, WHITE);
+ M5.Lcd.setCursor(20, 220);
+ M5.Lcd.print("QR DISP");
+}
 
 void setup() {
   M5.begin(true, false, true);
   Serial2.begin(9600, SERIAL_8N1, 13, 14);
-  showTempl();
+  // showTempl();
+  InitShow();
+  DispQrCode(QR_DISP_MODE);
 }
 
 void loop() {
@@ -14,18 +59,21 @@ void loop() {
   TouchPoint_t pos = M5.Touch.getPressPoint();
   char btn = btnPressed(pos);
   if (btn != 0) {
-    showTempl();
+    // showTempl();
     if (btn == 'A') {
-      M5.Lcd.println("Send Message.");
-      Serial2.println("AT$SF=33322E35");
-    } else if (btn == 'B') {
-      M5.Lcd.println("Send Message with Ack.");
-      Serial2.println("AT$SF=C0FFEE,1");        
-    } else if (btn == 'C') {
-      M5.Lcd.println("Device ID&PAC: ");
-      Serial2.println("AT$I=10");
-      Serial2.println("AT$I=11");    
+      ConvertDispQrCode();
+      // M5.Lcd.println("Send Message.");
+      // Serial2.println("AT$SF=33322E35");
     }
+    // } else if (btn == 'B') {
+      // M5.Lcd.println("Send Message with Ack.");
+      // Serial2.println("AT$SF=C0FFEE,1");        
+    //} else if (btn == 'C') {
+      // Serial.print("C pushed");
+      // M5.Lcd.println("Device ID&PAC: ");
+      // Serial2.println("AT$I=10");
+      // Serial2.println("AT$I=11");    
+    // }
     delay(1000);
   }
 }
@@ -45,6 +93,7 @@ char btnPressed(TouchPoint_t pos)
  return btn; 
 } 
 
+/*
 void showTempl() 
 {
  M5.Lcd.clear(BLACK);
@@ -52,15 +101,10 @@ void showTempl()
  M5.Lcd.setTextSize(2);
  M5.Lcd.setCursor(10, 10);
  M5.Lcd.println("M5Stack Core2 COM.Sigfox");
- M5.Lcd.setCursor(30, 220);
- M5.Lcd.print("UP");
- M5.Lcd.setCursor(129, 220);
- M5.Lcd.print("DOWN");
- M5.Lcd.setCursor(238, 220);
- M5.Lcd.print("ID/PAC");
  M5.Lcd.setTextColor(BLUE);
  M5.Lcd.setCursor(0, 35);
  }
+ */
 
 void displayResults(String ack)
 {
