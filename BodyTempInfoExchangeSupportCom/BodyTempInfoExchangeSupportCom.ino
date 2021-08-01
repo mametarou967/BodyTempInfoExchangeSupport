@@ -1,6 +1,8 @@
 #include <M5Core2.h>
 #include "BodyTempInfoExchangeSupportCom.h"
 
+#define DEBUG 0
+
 #define QR_DISP_MODE  0
 #define QR_HIDE_MODE  1
 
@@ -39,24 +41,25 @@ void SendValue(float value)
 {
   const int pointChar = 0x2E;
   char sendtext[16] = {0};
-  // M5.Lcd.println("Send Message.");
-  // Serial2.println("AT$SF=33322E35");
   int intValue = (int)value;
   int keta1 = (intValue / 10) + 0x30;
   int keta2 = (intValue % 10) + 0x30;
   int keta3 = (int)((value - intValue) * 10) + 0x30;
 
   sprintf(sendtext,"AT$SF=%X%X%X%X",keta1,keta2,pointChar,keta3);
-  Serial.print("Send Message.\n");
-  Serial.print(sendtext);
-  Serial.print("\n");
-  // M5.Lcd.println("Send Message.");
-  // Serial2.println("AT$SF=33322E35");
-  
+  if(!DEBUG){
+    Serial2.println(sendtext);
+  }
+
   M5.Lcd.setTextSize(2);
   M5.Lcd.setCursor(124,12);
   M5.Lcd.print(value, 2);
   M5.Lcd.print("C");
+  
+  // debug serial
+  Serial.print("Send Message.\n");
+  Serial.print(sendtext);
+  Serial.print("\n");
 }
 
 void InitShow(){
@@ -81,7 +84,6 @@ void InitShow(){
 void setup() {
   M5.begin(true, false, true);
   Serial2.begin(9600, SERIAL_8N1, 13, 14);
-  // showTempl();
   InitShow();
 }
 
@@ -122,6 +124,7 @@ char btnPressed(TouchPoint_t pos)
 
 void displayResults(String ack)
 {
+  /*
  M5.Lcd.println(ack);
  int i = ack.indexOf("RX=");
  if (i >= 0)
@@ -135,4 +138,5 @@ void displayResults(String ack)
  M5.Lcd.print("RSSI: ");
  M5.Lcd.println(rssi);
  }
+ */
 }
