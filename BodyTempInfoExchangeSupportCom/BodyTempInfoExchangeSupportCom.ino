@@ -1,5 +1,8 @@
 #include <M5Core2.h>
 #include "BodyTempInfoExchangeSupportCom.h"
+#include <esp_now.h>
+#include <WiFi.h>
+esp_now_peer_info_t slave;
 
 #define DEBUG 0
 
@@ -81,9 +84,37 @@ void InitShow(){
   DispQrCode(QR_HIDE_MODE);
 }
 
+void EspNowInit(){
+  // ESP-NOW初期化
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  if (esp_now_init() == ESP_OK) {
+  } else {
+    ESP.restart();
+  }
+  // マルチキャスト用Slave登録
+  memset(&slave, 0, sizeof(slave));
+  for (int i = 0; i < 6; ++i) {
+    slave.peer_addr[i] = (uint8_t)0xff;
+  }
+  esp_err_t addStatus = esp_now_add_peer(&slave);
+  if (addStatus == ESP_OK) {
+    // Pair success
+    Serial.println("Pair success");
+  }
+}
+
+// esp-now 受信コールバック
+void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
+  float receiveValue = (float)data[0] + ((float)data[1] /100);
+  SendValue(receiveValue);
+}
+
 void setup() {
   M5.begin(true, false, true);
   Serial2.begin(9600, SERIAL_8N1, 13, 14);
+  EspNowInit();
+  esp_now_register_recv_cb(OnDataRecv);
   InitShow();
 }
 
