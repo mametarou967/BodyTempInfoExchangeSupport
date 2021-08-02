@@ -4,12 +4,17 @@
 #include <WiFi.h>
 
 #define DEBUG 0
+#define NEXT_MEASUREMENT_TIME_MIN 2
 // QR DISP MODE
 #define QR_DISP_MODE  0
 #define QR_HIDE_MODE  1
 // ELAPSED TIME MODE
 #define ELAPSED_TIME_MODE_CLEAR 0
 #define ELAPSED_TIME_MODE_SEC_UPDATE 1
+// NEXT MEASUREMENT TIME MODE
+#define NEXT_MEASUREMENT_TIME_MODE_CLEAR 0
+#define NEXT_MEASUREMENT_TIME_MODE_SEC_UPDATE 1
+#define NEXT_MEASUREMENT_TIME_MODE_OVER 2
 
 int dispMode = QR_DISP_MODE;
 esp_now_peer_info_t slave;
@@ -17,6 +22,7 @@ hw_timer_t * timer = NULL;
 
 void elapsedTimeDispUpdate(const char* text){
   M5.Lcd.fillRect(164, 32, 20 * 5, 20, TFT_BLACK);
+  M5.Lcd.setTextColor(WHITE);
   M5.Lcd.setTextSize(2);
   M5.Lcd.setCursor(164,32);
   M5.Lcd.print(text);
@@ -24,12 +30,63 @@ void elapsedTimeDispUpdate(const char* text){
 
 void latestSentValueDispUpdate(float value){
   M5.Lcd.fillRect(164, 12, 20 * 5, 20, TFT_BLACK);
+  M5.Lcd.setTextColor(WHITE);
   M5.Lcd.setTextSize(2);
   M5.Lcd.setCursor(164,12);
   M5.Lcd.print(value, 2);
   M5.Lcd.print("C");
-  
 }
+
+
+void measurementTimeDispUpdate(const char* text){
+  const int x = 52;
+  const int y = 134;
+  
+  M5.Lcd.fillRect(x,  y , 80, 20, TFT_BLACK);
+  M5.Lcd.setTextColor(WHITE);
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.setCursor(x,y);
+  M5.Lcd.print(text);
+}
+
+void pleaseMeasureDispUpdate(bool disp)
+{
+  const int x = 32;
+  const int y = 160;
+  if(disp){
+    M5.Lcd.setTextColor(RED);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.setCursor(x,y);
+    M5.Lcd.println("Please");
+    M5.Lcd.setCursor(x,y + 20);
+    M5.Lcd.print("Measure");
+  }else{
+    M5.Lcd.fillRect(x, y, 100, 20 * 2, TFT_BLACK);
+  }
+}
+
+void DispQrCode(int mode){
+  const int qrX = 158;
+  const int qrY = 70;
+  const int qrSize = 160;
+  
+  if(mode == QR_DISP_MODE){
+    M5.Lcd.fillRect(qrX, qrY, qrSize, qrSize, TFT_BLACK);
+    M5.Lcd.qrcode(YOUR_WEBSITE_URI,qrX,qrY,qrSize,6);
+  }else{
+    M5.Lcd.fillRect(qrX, qrY, qrSize, qrSize, TFT_BLACK);
+    M5.Lcd.drawRect(qrX, qrY, qrSize, qrSize, WHITE);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.setCursor(qrX + 35, qrY + (qrSize / 2) - 20);
+    M5.Lcd.print("QR code");
+    M5.Lcd.setCursor(qrX + 45, qrY + (qrSize / 2));
+    M5.Lcd.print("Hidden");
+  }
+
+  dispMode = mode;
+}
+
+
 void elapsedTimeUpdated(int mode){
   static int elapsedTimeSec = 0;
   static int elapsedTimeMin = 0;
@@ -59,30 +116,47 @@ void elapsedTimeUpdated(int mode){
   elapsedTimeDispUpdate(dispText);
 }
 
-void IRAM_ATTR onTimer() {
-  elapsedTimeUpdated(ELAPSED_TIME_MODE_SEC_UPDATE);
-}
-
-void DispQrCode(int mode){
-  const int qrX = 135;
-  const int qrY = 70;
-  const int qrSize = 160;
+void nextMeasurementTimeUpdated(int mode){
+  static int nextMeasurementTimeSec = 0;
+  static int nextMeasurementTimeMin = NEXT_MEASUREMENT_TIME_MIN;
   
-  if(mode == QR_DISP_MODE){
-    M5.Lcd.fillRect(qrX, qrY, qrSize, qrSize, TFT_BLACK);
-    M5.Lcd.qrcode(YOUR_WEBSITE_URI,qrX,qrY,qrSize,6);
-  }else{
-    M5.Lcd.fillRect(qrX, qrY, qrSize, qrSize, TFT_BLACK);
-    M5.Lcd.drawRect(qrX, qrY, qrSize, qrSize, WHITE);
-    M5.Lcd.setTextSize(2);
-    M5.Lcd.setCursor(qrX + 35, qrY + (qrSize / 2) - 20);
-    M5.Lcd.print("QR code");
-    M5.Lcd.setCursor(qrX + 45, qrY + (qrSize / 2));
-    M5.Lcd.print("Hidden");
+  char dispText[10] = {0};
+
+  if(mode == NEXT_MEASUREMENT_TIME_MODE_CLEAR){
+    nextMeasurementTimeSec = 0;
+    nextMeasurementTimeMin = NEXT_MEASUREMENT_TIME_MIN;
+  }else if(mode == NEXT_MEASUREMENT_TIME_MODE_OVER){
+    nextMeasurementTimeSec = 0;
+    nextMeasurementTimeMin = 0;
+    pleaseMeasureDispUpdate(true);
+  }else if(mode == NEXT_MEASUREMENT_TIME_MODE_SEC_UPDATE){
+    if(nextMeasurementTimeSec != 0 || nextMeasurementTimeMin != 0){
+      nextMeasurementTimeSec = nextMeasurementTimeSec - 1;
+      
+      if(nextMeasurementTimeSec < 0){
+        nextMeasurementTimeSec = 59;
+        nextMeasurementTimeMin = nextMeasurementTimeMin - 1;
+      }
+
+      // 計測時間満了
+      if(nextMeasurementTimeSec == 0 && nextMeasurementTimeMin == 0){
+        pleaseMeasureDispUpdate(true);
+      }
+    }
   }
 
-  dispMode = mode;
+  sprintf(dispText,"%d:%02d",nextMeasurementTimeMin,nextMeasurementTimeSec);
+  measurementTimeDispUpdate(dispText);
+  
 }
+
+
+void IRAM_ATTR onTimer() {
+  elapsedTimeUpdated(ELAPSED_TIME_MODE_SEC_UPDATE);
+  nextMeasurementTimeUpdated(NEXT_MEASUREMENT_TIME_MODE_SEC_UPDATE);
+}
+
+
 
 void ConvertDispQrCode(){
   if(dispMode == QR_DISP_MODE){
@@ -119,9 +193,12 @@ void InitShow(){
   M5.Lcd.setCursor(30,40);
   M5.Lcd.print("     Elapsed Time:");
 
+  // middle text
+  M5.Lcd.drawRect(2, 70, 146, 138, WHITE);
+
   // A button text
   M5.Lcd.setTextSize(2);
-  M5.Lcd.drawRect(6, 218, 110, 20, WHITE);
+  M5.Lcd.drawRect(2, 218, 114, 20, WHITE);
   M5.Lcd.setCursor(20, 220);
   M5.Lcd.print("QR DISP");
 
@@ -155,8 +232,11 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   SendValue(receiveValue);
   // 経過時間の初期化
   elapsedTimeUpdated(ELAPSED_TIME_MODE_CLEAR);
+  nextMeasurementTimeUpdated(NEXT_MEASUREMENT_TIME_MODE_CLEAR);
   // 画面に送った値の表示
   latestSentValueDispUpdate(receiveValue);
+  // 計測の警告の非表示
+  pleaseMeasureDispUpdate(false);
 }
 
 void setup() {
@@ -169,6 +249,8 @@ void setup() {
   esp_now_register_recv_cb(OnDataRecv);
   // disp config
   InitShow();
+  // measure
+  nextMeasurementTimeUpdated(NEXT_MEASUREMENT_TIME_MODE_OVER);
   // timer config
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
