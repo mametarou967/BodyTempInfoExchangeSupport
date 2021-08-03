@@ -2,6 +2,21 @@
 #include "BodyTempInfoExchangeSupportCom.h"
 #include <esp_now.h>
 #include <WiFi.h>
+#include <driver/i2s.h>
+
+extern const unsigned char previewR[120264];
+
+
+#define CONFIG_I2S_BCK_PIN 12
+#define CONFIG_I2S_LRCK_PIN 0
+#define CONFIG_I2S_DATA_PIN 2
+#define CONFIG_I2S_DATA_IN_PIN 34
+
+#define Speak_I2S_NUMBER I2S_NUM_0
+
+#define MODE_MIC 0
+#define MODE_SPK 1
+#define DATA_SIZE 1024
 
 #define DEBUG 0
 #define NEXT_MEASUREMENT_TIME_MIN 2
@@ -16,9 +31,71 @@
 #define NEXT_MEASUREMENT_TIME_MODE_SEC_UPDATE 1
 #define NEXT_MEASUREMENT_TIME_MODE_OVER 2
 
+// MAIN LOOP FLAG
+bool measureTime = false;
+
 int dispMode = QR_DISP_MODE;
 esp_now_peer_info_t slave;
 hw_timer_t * timer = NULL;
+
+bool InitI2SSpeakOrMic(int mode)
+{
+    esp_err_t err = ESP_OK;
+
+    i2s_driver_uninstall(Speak_I2S_NUMBER);
+    i2s_config_t i2s_config = {
+        .mode = (i2s_mode_t)(I2S_MODE_MASTER),
+        .sample_rate = 44100,
+        .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT, // is fixed at 12bit, stereo, MSB
+        .channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT,
+        .communication_format = I2S_COMM_FORMAT_I2S,
+        .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+        .dma_buf_count = 2,
+        .dma_buf_len = 128,
+    };
+    if (mode == MODE_MIC)
+    {
+        i2s_config.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_PDM);
+    }
+    else
+    {
+        i2s_config.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX);
+        i2s_config.use_apll = false;
+        i2s_config.tx_desc_auto_clear = true;
+    }
+    err += i2s_driver_install(Speak_I2S_NUMBER, &i2s_config, 0, NULL);
+    i2s_pin_config_t tx_pin_config;
+
+    tx_pin_config.bck_io_num = CONFIG_I2S_BCK_PIN;
+    tx_pin_config.ws_io_num = CONFIG_I2S_LRCK_PIN;
+    tx_pin_config.data_out_num = CONFIG_I2S_DATA_PIN;
+    tx_pin_config.data_in_num = CONFIG_I2S_DATA_IN_PIN;
+    err += i2s_set_pin(Speak_I2S_NUMBER, &tx_pin_config);
+    err += i2s_set_clk(Speak_I2S_NUMBER, 44100, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
+
+    return true;
+}
+
+void DisplayInit(void)
+{
+  M5.Lcd.fillScreen(WHITE);
+  M5.Lcd.setTextColor(BLACK);
+  M5.Lcd.setTextSize(2);
+}
+
+void SpeakInit(void)
+{
+  M5.Axp.SetSpkEnable(true);
+  InitI2SSpeakOrMic(MODE_SPK);
+}
+
+void DingDong(void)
+{
+  size_t bytes_written = 0;
+  i2s_write(Speak_I2S_NUMBER, previewR, 120264, &bytes_written, portMAX_DELAY);
+}
+
+
 
 void elapsedTimeDispUpdate(const char* text){
   M5.Lcd.fillRect(164, 32, 20 * 5, 20, TFT_BLACK);
@@ -141,6 +218,7 @@ void nextMeasurementTimeUpdated(int mode){
       // 計測時間満了
       if(nextMeasurementTimeSec == 0 && nextMeasurementTimeMin == 0){
         pleaseMeasureDispUpdate(true);
+        measureTime = true;
       }
     }
   }
@@ -256,6 +334,9 @@ void setup() {
   timerAttachInterrupt(timer, &onTimer, true);
   timerAlarmWrite(timer, 1000000, true);
   timerAlarmEnable(timer);
+  // speaker
+  SpeakInit();
+  delay(100);
 }
 
 
@@ -272,6 +353,15 @@ void loop() {
     }
     delay(1000);
   }
+
+  if(measureTime){
+    DingDong();
+    DingDong();
+    DingDong();
+    measureTime = false;
+  }
+  
+  delay(100);
 }
 
 char btnPressed(TouchPoint_t pos) 
